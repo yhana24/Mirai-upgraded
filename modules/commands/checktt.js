@@ -1,72 +1,121 @@
 module.exports.config = {
 	name: "checktt",
-	version: "1.0.5",
+	version: "1.0.0",
 	hasPermssion: 0,
-	credits: "Mirai Team",
-	description: "Kiểm tra lượt tương tác trong nhóm",
-	commandCategory: "system",
-	usages: "[all/tag]",
+	credits: "SenProject",
+	description: "interactive check",
+	commandCategory: "Utilities",
+	usages: "checktt",
 	cooldowns: 5,
-    envConfig: {
-        "maxColumn": 10
-    }
-};
+	dependencies: {
+		"fs-extra": ""
+	}
+}
 
-module.exports.languages = {
-    "vi": {
-        "all": "%1/ %2 với %3 tin nhắn\n",
-        "mention": "%1 đứng hạng %2 với %3 tin nhắn",
-        "myself": "Bạn đang đứng hạng %1 với %2 tin nhắn"
-    },
-    "en": {
-        "all": "%1/ %2 with %3 messages\n",
-        "mention": "%1 on top %2 with %3 messages",
-        "myself": "You are on top %1 with %2 messages "
+const path = __dirname + '/count-by-thread/';
+
+module.exports.onLoad = () => {
+    const fs = require('fs');
+    if (!fs.existsSync(path) || !fs.statSync(path).isDirectory()) {
+        fs.mkdirSync(path, { recursive: true });
     }
 }
 
-module.exports.run = async function ({ args, api, event, Currencies, getText }) {
-    var mention = Object.keys(event.mentions);
-    try {
-        const data = await api.getThreadInfo(event.threadID);
-        if (args[0] == "all") {
-            var number = 1, msg = "", storage = [], exp = [];
-            for (const value of data.userInfo) storage.push({"id" : value.id, "name": value.name});
-            for (const user of storage) {
-                const countMess = await Currencies.getData(user.id);
-                exp.push({"name" : user.name, "exp": (typeof countMess.exp == "undefined") ? 0 : countMess.exp});
+module.exports.handleEvent = function ({ event }) {
+    const { messageID, threadID, senderID } = event;
+    if (!global.data.allThreadID.some(tid => tid == threadID)) return;
+    const fs = global.nodemodule['fs'];
+    const threadPath = path + threadID + '.json';
+    if (!fs.existsSync(threadPath) || fs.statSync(threadPath).isDirectory()) {
+        fs.writeFileSync(threadPath, JSON.stringify({}, null, 4));
+    }
+    const getThreadJSON = JSON.parse(fs.readFileSync(threadPath)) || {};
+    if (!getThreadJSON.hasOwnProperty(senderID)) {
+        getThreadJSON[senderID] = 0;
+    }
+    getThreadJSON[senderID]++;
+    fs.writeFileSync(threadPath, JSON.stringify(getThreadJSON, null, 4));
+}
+
+
+ const getRankName = count => {
+    return count > 50000 ? 'War Generals'
+    :count > 9000 ? 'Master'
+        : count > 8000 ? 'Elite V'
+            : count > 6100 ? 'Elite IV'
+                : count > 5900? 'Elite III'
+                    : count > 5700 ? 'Elite II'
+                        : count > 5200 ? 'Elite I'
+                            : count > 5000 ? 'Diamond V'
+                                : count > 4800 ? 'Diamond IV'
+                                    : count > 4500 ? 'Diamond III'
+                                        : count > 4000 ? 'Diamond II'
+                                            : count > 3800 ? 'Diamond I'
+                                                : count > 3500 ? 'Platinum IV'
+                                                    : count > 3200 ? 'Platinum III'
+                                                        : count > 3000 ? 'Platinum II'
+                                                            : count > 2900 ? 'Platinum I'
+                                                                : count > 2500 ? 'Gold IV'
+                                                                    : count > 2300 ? 'Gold III'
+                                                                        : count > 2000 ? 'Gold II'
+                                                                            : count > 1500 ? 'Gold I'
+                                                                                : count > 1200 ? 'Silver III'
+                                                                                    : count > 1000 ? 'Silver II'
+                                                                                        : count > 900 ? 'Silver I'
+                                                                                            : count > 500 ? 'Copper III'
+                                                                                                : count > 100 ? 'Copper II'
+                                                                                                    : 'Copper I'
+}
+
+
+
+module.exports.run = async function ({ api, event, args, Users }) {
+    const fs = global.nodemodule['fs'];
+    const { messageID, threadID, senderID, mentions } = event;
+    const threadPath = path + threadID + '.json';
+    if (!fs.existsSync(threadPath) || fs.statSync(threadPath).isDirectory()) {
+        fs.writeFileSync(threadPath, JSON.stringify({}, null, 4));
+    }
+    const query = args[0] ? args[0].toLowerCase() : '';
+    const getThreadJSON = JSON.parse(fs.readFileSync(threadPath)) || {};
+    if (!getThreadJSON.hasOwnProperty(senderID)) {
+        getThreadJSON[senderID] = 1;
+    }
+    var storage = [],
+        msg = '';
+    if (query == 'all') {
+        const allThread = await api.getThreadInfo(threadID) || { participantIDs: [] };
+        for (id of allThread.participantIDs) {
+            if (!getThreadJSON.hasOwnProperty(id)) {
+                getThreadJSON[id] = 0;
             }
-            exp.sort(function (a, b) { return b.exp - a.exp });
-
-            for (const lastData of exp)  msg += getText("all", number++, lastData.name, lastData.exp);
-            return api.sendMessage(msg, event.threadID);
         }
-        else if (mention[0]) {
-            var storage = [], exp = [];
-            for (const value of data.userInfo) storage.push({"id" : value.id, "name": value.name});
-
-            for (const user of storage) {
-                const countMess = await Currencies.getData(user.id);
-                exp.push({"name" : user.name, "exp": (typeof countMess.exp == "undefined") ? 0 : countMess.exp, "uid": user.id});
-            }
-            exp.sort(function (a, b) { return b.exp - a.exp });
-
-            const rank = exp.findIndex(info => parseInt(info.uid) == parseInt(mention[0])) + 1;
-            const infoUser = exp[rank - 1];
-            return api.sendMessage(getText("mention", infoUser.name, rank, infoUser.exp), event.threadID);
+    }
+    for (const id in getThreadJSON) {
+        const name = await Users.getNameUser(id);
+        storage.push({ id, name, count: getThreadJSON[id] });
+    }
+    storage.sort((a, b) => {
+        if (a.count > b.count) return -1;
+        else if (a.count < b.count) return 1;
+        else return a.name.localeCompare(b.name);
+    });
+    if (query == 'all') {
+        let count = 1;
+        msg += '===CHECKTT===';
+        for (const user of storage) {
+            msg += `\n${count++}. ${user.name} - ${user.count}`;
         }
-        else {
-            var storage = [], exp = [];
-            for (const value of data.userInfo) storage.push({"id" : value.id, "name": value.name});
-            for (const user of storage) {
-                const countMess = await Currencies.getData(user.id);
-                exp.push({"name" : user.name, "exp": (typeof countMess.exp == "undefined") ? 0 : countMess.exp, "uid": user.id});
-            }
-            exp.sort(function (a, b) { return b.exp - a.exp });
-
-            const rank = exp.findIndex(info => parseInt(info.uid) == parseInt(event.senderID)) + 1;
-            const infoUser = exp[rank - 1];
-            return api.sendMessage(getText("myself", rank, infoUser.exp), event.threadID);
+    } else if (query == 'rank') {
+        msg += 'Copper 1 (10msgs)\nCopper 2 (100msgs)\nCopper 3 (500msgs)\nSilver 1 (900 msgs)\nSilver 2 (1000 msgs)\nSilver 3 (1200 msgs)\nGold 1 (1500 msgs)\nGold2 (2000 msgs)\nGold3 (2300 msgs)\nGold 4 (2500 msgs)\nPlatinum 1 (2900 msgs)\nPlatinum  2 (3000 msgs)\nPlatinum 3 (3200 msgs)\nPlatinum 4 (3500 msgs)\nDiamond 1(3800 msgs)\nDiamond 2 (4000 msgs)\nDiamond 3 (4500 msgs)\nDiamond 4(4800 msgs)\nDiamond 5 (5000 msgs)\nElite 1 (5200 msgs)\nElite 2 (5700 msgs)\nElite 3 (5900 msgs)\nElite 4 (6100 msgs)\nElite 5 (8000 msgs)\nMaster (9000 msgs)\nWar Generals (50000 msgs)'
+    } else if (!query) {
+        let userID = senderID;
+        if (Object.keys(mentions).length > 0) {
+            userID = mentions[0];
         }
-    } catch (e) { return console.log(e) }
+        const rankUser = storage.findIndex(e => e.id == userID);
+        msg += `${userID == senderID ? '💠Friend' : storage[rankUser].name} ranked ${rankUser + 1}\n💌Number of messages: ${storage[rankUser].count}\n🔰Rank ${getRankName(storage[rankUser].count)}`;
+    }
+    api.sendMessage(msg, threadID);
+    return;
 }
