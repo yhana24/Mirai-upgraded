@@ -1,5 +1,5 @@
 module.exports.config = {
-	name: "baicao",
+	name: "cao3la",
 	version: "1.0.4",
 	hasPermssion: 0,
 	credits: "Mirai Team",
@@ -163,4 +163,5 @@ module.exports.run = async ({ api, event, args }) => {
 			return global.utils.throwError(this.config.name, threadID, messageID);
 		}
 	}
-}
+    }
+  
